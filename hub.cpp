@@ -1,4 +1,6 @@
-#include <sys/types.h> // see `man socket`
+#include "EthHeaderView.h"
+#include "MACView.h"
+
 #include <sys/socket.h>
 #include <arpa/inet.h> // for htons
 #include <net/ethernet.h>
@@ -35,6 +37,15 @@ void runHub(const std::vector<int>& fds) {
                 std::cout << "Received " << nread << " bytes by " << i << '\n';
 
                 if (sll.sll_pkttype == PACKET_OUTGOING) continue;
+
+                EthHeaderView ethHeader(buffer, nread);
+                if (ethHeader.valid())
+                {
+                     std::cout << "Ethernet type: " << std::hex << ethHeader.ethertype() << std::dec << '\n';
+                     std::cout << "Destination: " << MACView(ethHeader.dst()) << '\n';
+                     std::cout << "Source: " << MACView(ethHeader.src()) << '\n';
+
+                }
 
                 for (size_t j = 0; j < poll_fds.size(); ++j) {
                     if (i != j) {

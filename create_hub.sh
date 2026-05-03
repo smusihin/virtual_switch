@@ -1,7 +1,7 @@
 APP_NAME="tap-hub"
 PORTS_COUNT=${1:-2}
 
-g++ hub.cpp -o "$APP_NAME"
+g++ hub.cpp -std=c++20 -o "$APP_NAME"
 
 args=()
 
