@@ -13,6 +13,50 @@
 
 #include <poll.h>
 
+struct ForwardDecision
+{
+    bool drop = false;
+    std::vector<size_t> outPorts;
+};
+
+ForwardDecision ingress(uint8_t* buffer, size_t nread, size_t inPort, size_t portsCount)
+{
+    EthHeaderView eth(buffer, nread);
+
+    if (!eth.valid())
+    {
+        return {.drop = true};
+    }
+
+    std::cout << "Ethernet type: 0x"
+              << std::hex << eth.ethertype() << std::dec << '\n';
+
+    std::cout << "Destination: " << MACView(eth.dst()) << '\n';
+    std::cout << "Source: " << MACView(eth.src()) << '\n';
+
+    ForwardDecision fd{};
+    for (size_t j = 0; j < portsCount; ++j)
+    {
+        if (j != inPort)
+            fd.outPorts.push_back(j);
+    }
+
+    return fd;
+}
+
+void egress(const ForwardDecision& fd,
+            uint8_t* buffer,
+            size_t nread,
+            const std::vector<pollfd>& pollFds)
+{
+    if (fd.drop) return;
+
+    for (const auto& outPort : fd.outPorts) {
+        std::cout << "Write to " << outPort << '\n';
+        write(pollFds[outPort].fd, buffer, nread);
+    }
+}
+
 void runHub(const std::vector<int>& fds) {
     std::vector<pollfd> poll_fds;
     for (int fd : fds) {
@@ -38,21 +82,9 @@ void runHub(const std::vector<int>& fds) {
 
                 if (sll.sll_pkttype == PACKET_OUTGOING) continue;
 
-                EthHeaderView ethHeader(buffer, nread);
-                if (ethHeader.valid())
-                {
-                     std::cout << "Ethernet type: " << std::hex << ethHeader.ethertype() << std::dec << '\n';
-                     std::cout << "Destination: " << MACView(ethHeader.dst()) << '\n';
-                     std::cout << "Source: " << MACView(ethHeader.src()) << '\n';
+                auto decision = ingress(buffer, nread, i, poll_fds.size());
+                egress(decision, buffer, nread, poll_fds);
 
-                }
-
-                for (size_t j = 0; j < poll_fds.size(); ++j) {
-                    if (i != j) {
-                        std::cout << "Write to " << j << '\n';
-                        write(poll_fds[j].fd, buffer, nread);
-                    }
-                }
             }
         }
     }
