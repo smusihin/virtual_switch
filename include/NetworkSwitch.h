@@ -39,7 +39,7 @@ public:
 private:
     ForwardDecision ingress(InputPacket inputPacket)
     {
-        EthHeaderView eth(inputPacket.data.data(), inputPacket.data.size());
+        EthHeaderView eth(inputPacket.data);
 
         if (!eth.valid())
         {

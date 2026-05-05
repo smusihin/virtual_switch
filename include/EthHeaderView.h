@@ -9,8 +9,8 @@ class EthHeaderView
 public:
     static constexpr size_t kHeaderSize = 14;
 
-    EthHeaderView(const uint8_t* data, size_t len)
-        : m_data(data), m_len(len) {}
+    explicit EthHeaderView(std::span<uint8_t> buffer)
+        : m_data(buffer.data()), m_len(buffer.size()) {}
 
     bool valid() const
     {
