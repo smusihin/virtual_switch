@@ -22,10 +22,12 @@ struct InputPacket
 
 class IO
 {
+    constexpr static size_t kInputBufferSize = 2048;
 public:
     IO(const std::vector<std::string_view>& interfaces)
     {
         m_pollFds.reserve(interfaces.size());
+        m_inputBuffers.resize(interfaces.size());
         for (const auto &interface: interfaces)
         {
             m_pollFds.push_back({createRawSocket(interface),POLLIN, 0});
@@ -44,12 +46,14 @@ public:
             if (m_pollFds[i].revents & POLLIN) {
                 socklen_t sll_len = sizeof(sll);
 
-                ssize_t nread = recvfrom(m_pollFds[i].fd, m_buffer, sizeof(m_buffer), 0,
+                auto *data = m_inputBuffers[i].data();
+
+                ssize_t nread = recvfrom(m_pollFds[i].fd, data, kInputBufferSize, 0,
                                          (struct sockaddr*)&sll, &sll_len);
 
                 if (nread <= 0) continue;
 
-                result.push_back({i, std::span<uint8_t>(m_buffer, nread)});
+                result.push_back(InputPacket{i, std::span<uint8_t>(data, nread)});
             }
         }
 
@@ -81,6 +85,6 @@ private:
     }
 
 private:
-    uint8_t m_buffer[2048];
     std::vector<pollfd> m_pollFds;
+    std::vector<std::array<uint8_t, kInputBufferSize>> m_inputBuffers;
 };
